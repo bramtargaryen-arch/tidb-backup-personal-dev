@@ -47,6 +47,16 @@ var (
 	}
 )
 
+func TestBucketSplitFallbackInfoString(t *testing.T) {
+	info := &bucketSplitFallbackInfo{
+		reason:              "range_start_outside_location",
+		bucketVersion:       17,
+		remainingRangeCount: 1,
+	}
+
+	require.Contains(t, info.String(), "bucketVersion=17")
+}
+
 // TestValidateLocationCoverage tests various coverage scenarios
 func TestValidateLocationCoverage(t *testing.T) {
 	ctx := context.Background()
@@ -408,10 +418,10 @@ func TestPanicInSplitKeyRangesByBuckets(t *testing.T) {
 	t.Logf("Test completed successfully - panic was caught, diagnostics logged, and re-panicked as expected")
 }
 
-// TestLocateBucketNilFallback tests that when the first range starts outside the
-// location boundaries, splitKeyRangesByBuckets returns unsplit ranges instead of
-// panicking.
-func TestLocateBucketNilFallback(t *testing.T) {
+// TestRangeStartOutsideLocationFallback tests that when the first range starts
+// outside the location boundaries, splitKeyRangesByBuckets returns unsplit
+// ranges instead of panicking.
+func TestRangeStartOutsideLocationFallback(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a location covering [a, m)
@@ -440,6 +450,8 @@ func TestLocateBucketNilFallback(t *testing.T) {
 	// Call splitKeyRangesByBuckets - should NOT panic, should return unsplit ranges
 	result, fb := lkr.splitKeyRangesByBuckets(ctx)
 	require.NotNil(t, fb)
+	require.Equal(t, "range_start_outside_location", fb.reason)
+	require.Equal(t, loc.GetBucketVersion(), fb.bucketVersion)
 
 	// Verify we got the fallback behavior: unsplit original LocationKeyRanges
 	require.Len(t, result, 1, "Expected 1 unsplit LocationKeyRanges")
@@ -479,6 +491,8 @@ func TestLocateBucketOutsideRegionNonNilFallback(t *testing.T) {
 
 	result, fb := lkr.splitKeyRangesByBuckets(ctx)
 	require.NotNil(t, fb)
+	require.Equal(t, "range_start_outside_location", fb.reason)
+	require.Equal(t, loc.GetBucketVersion(), fb.bucketVersion)
 	require.Len(t, result, 1, "Expected unsplit LocationKeyRanges fallback")
 	require.Equal(t, lkr, result[0], "Expected original LocationKeyRanges to be returned")
 }
@@ -534,6 +548,7 @@ func TestOverlappingRangesCanProduceOutOfOrderRangesAfterSplit(t *testing.T) {
 	result, fb := lkr.splitKeyRangesByBuckets(ctx)
 	require.NotNil(t, fb)
 	require.Equal(t, "range_start_outside_location", fb.reason)
+	require.Equal(t, loc1.GetBucketVersion(), fb.bucketVersion)
 	require.Len(t, result, 1)
 	require.Equal(t, lkr, result[0])
 }

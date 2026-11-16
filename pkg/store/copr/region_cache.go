@@ -54,7 +54,7 @@ type bucketSplitFallbackInfo struct {
 
 // String renders the split-fallback info for structured logs.
 func (info *bucketSplitFallbackInfo) String() string {
-	return fmt.Sprintf("bucketSplitFallback{reason=%s, remaining=%d}", info.reason, info.remainingRangeCount)
+	return fmt.Sprintf("bucketSplitFallback{reason=%s, bucketVersion=%d, remaining=%d}", info.reason, info.bucketVersion, info.remainingRangeCount)
 }
 
 const (
@@ -566,6 +566,7 @@ func (l *LocationKeyRanges) splitKeyRangesByBuckets(ctx context.Context) ([]*Loc
 			r := ranges.At(0)
 			return []*LocationKeyRanges{l}, &bucketSplitFallbackInfo{
 				reason:              "locate_bucket_nil",
+				bucketVersion:       l.getBucketVersion(),
 				startKey:            startKey,
 				endKey:              r.EndKey,
 				remainingRangeCount: ranges.Len(),
@@ -906,6 +907,7 @@ func (c *RegionCache) SplitKeyRangesByBuckets(bo *Backoffer, ranges *KeyRanges) 
 			zap.Any("locationRangeIssues", locationRangeIssues),
 			zap.Bool("locationHasBuckets", locationHasBuckets),
 			zap.Uint64("locationBucketsVer", cachedLoc.GetBucketVersion()),
+			zap.Uint64("fallbackBucketVersion", fallback.bucketVersion),
 			zap.Int("locationBucketKeyCount", bucketKeyCount),
 			keyField("fallbackRangeStartKey", fallback.startKey),
 			keyField("fallbackRangeEndKey", fallback.endKey),
